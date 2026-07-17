@@ -1,8 +1,9 @@
-# Python 3.11 compatible versions
+# Python 3.11+ compatible versions
 fastapi>=0.115.0,<0.120.0
 uvicorn[standard]>=0.32.0,<0.35.0
 langchain>=0.3.0,<0.4.0
 langchain-openai>=0.2.0,<0.3.0
+langchain-google-vertexai>=2.0.0,<3.0.0
 langgraph>=0.2.0,<0.3.0
 pydantic>=2.5.0,<3.0.0
 pydantic-settings>=2.1.0,<3.0.0
@@ -12,4 +13,5 @@ redis>=5.2.0,<6.0.0
 prometheus-client>=0.21.0,<0.22.0
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
-
+bcrypt>=4.0.1,<4.1.0
+google-cloud-aiplatform>=1.60.0,<2.0.0

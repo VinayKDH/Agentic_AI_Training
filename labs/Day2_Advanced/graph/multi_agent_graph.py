@@ -122,12 +122,13 @@ class MultiAgentGraph:
         # Get next research task
         research_tasks = [t for t in state.get("tasks", []) 
                          if t["assigned_to"] == AgentRole.RESEARCHER 
-                         and t["status"] == TaskStatus.PENDING]
+                         and t["status"] in (TaskStatus.PENDING, TaskStatus.NEEDS_REVIEW)]
         
         if not research_tasks:
             return state
         
         task = research_tasks[0]
+        task["status"] = TaskStatus.IN_PROGRESS
         state["current_task_id"] = task["id"]
         
         # Get context from previous tasks
@@ -155,12 +156,13 @@ class MultiAgentGraph:
         # Get next coding task
         coding_tasks = [t for t in state.get("tasks", []) 
                        if t["assigned_to"] == AgentRole.CODER 
-                       and t["status"] == TaskStatus.PENDING]
+                       and t["status"] in (TaskStatus.PENDING, TaskStatus.NEEDS_REVIEW)]
         
         if not coding_tasks:
             return state
         
         task = coding_tasks[0]
+        task["status"] = TaskStatus.IN_PROGRESS
         state["current_task_id"] = task["id"]
         
         # Build context
@@ -209,6 +211,7 @@ class MultiAgentGraph:
         
         # Update state
         state["review_feedback"].append(review_result)
+        state["iteration_count"] = int(state.get("iteration_count") or 0) + 1
         
         if review_result["approved"]:
             task["status"] = TaskStatus.COMPLETED
@@ -226,10 +229,10 @@ class MultiAgentGraph:
         """Synthesize final output"""
         print("\n[Synthesizer] Creating final output...")
         
-        from langchain_openai import ChatOpenAI
         from langchain_core.prompts import ChatPromptTemplate
-        
-        llm = ChatOpenAI(model="gpt-4", temperature=0.3)
+        from utils.llm import get_llm
+
+        llm = get_llm(temperature=0.3)
         
         prompt = ChatPromptTemplate.from_messages([
             ("system", "Synthesize all work products into a comprehensive final answer."),

@@ -1,0 +1,22 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/agentic-ai/day3-advanced:$SHORT_SHA
+      - -t
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/agentic-ai/day3-advanced:latest
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/agentic-ai/day3-advanced:$SHORT_SHA
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/agentic-ai/day3-advanced:latest
+images:
+  - asia-south1-docker.pkg.dev/$PROJECT_ID/agentic-ai/day3-advanced:$SHORT_SHA
+  - asia-south1-docker.pkg.dev/$PROJECT_ID/agentic-ai/day3-advanced:latest
+options:
+  logging: CLOUD_LOGGING_ONLY

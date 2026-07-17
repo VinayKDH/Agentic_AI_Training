@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.git/
+*.md
+k8s/
+cloudbuild.yaml
+docker/

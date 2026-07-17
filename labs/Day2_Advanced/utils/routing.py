@@ -32,6 +32,10 @@ class RoutingLogic:
     
     def after_review(self, state: MultiAgentState) -> str:
         """Route after review"""
+        iteration = int(state.get("iteration_count") or 0)
+        if iteration >= 6:
+            return "synthesizer"
+
         current_task_id = state.get("current_task_id")
         if not current_task_id:
             return "synthesizer"
@@ -47,7 +51,10 @@ class RoutingLogic:
         
         if latest_review and latest_review.get("approved"):
             # Check for more tasks
-            pending_tasks = [t for t in state["tasks"] if t["status"] == TaskStatus.PENDING]
+            pending_tasks = [
+                t for t in state["tasks"]
+                if t["status"] in (TaskStatus.PENDING, TaskStatus.NEEDS_REVIEW)
+            ]
             
             if any(t["assigned_to"] == AgentRole.CODER for t in pending_tasks):
                 return "coder"

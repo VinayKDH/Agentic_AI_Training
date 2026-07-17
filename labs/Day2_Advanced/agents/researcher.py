@@ -1,83 +1,56 @@
-from langchain_openai import ChatOpenAI
-from langchain_community.tools import DuckDuckGoSearchRun
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.prompts import ChatPromptTemplate
 from state import Task, TaskStatus
-import os
+from utils.llm import get_llm
 from datetime import datetime
 
-# Try to import agent components
-try:
-    from langchain.agents import AgentExecutor, create_openai_tools_agent
-    AGENT_AVAILABLE = True
-    AGENT_TYPE = "openai_tools"
-except ImportError:
-    try:
-        from langchain.agents import AgentExecutor, create_react_agent
-        AGENT_AVAILABLE = True
-        AGENT_TYPE = "react"
-    except ImportError:
-        AGENT_AVAILABLE = False
 
 class ResearcherAgent:
     def __init__(self):
-        self.llm = ChatOpenAI(
-            model="gpt-4",
-            temperature=0.7,
-            api_key=os.getenv("OPENAI_API_KEY")
-        )
-        self.search_tool = DuckDuckGoSearchRun()
-        
-        if AGENT_AVAILABLE:
-            # Create prompt template
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are a research assistant. Use the search tool to find information."),
-                ("human", "{input}"),
-                MessagesPlaceholder(variable_name="agent_scratchpad"),
-            ])
-            
-            # Create agent
-            if AGENT_TYPE == "openai_tools":
-                agent = create_openai_tools_agent(self.llm, [self.search_tool], prompt)
-            else:
-                agent = create_react_agent(self.llm, [self.search_tool], prompt)
-            
-            # Create agent executor
-            self.agent = AgentExecutor(
-                agent=agent,
-                tools=[self.search_tool],
-                verbose=True,
-                handle_parsing_errors=True,
-                max_iterations=3
-            )
-        else:
-            self.agent = None
-    
+        self.llm = get_llm(temperature=0.5)
+        self.search_tool = None
+        try:
+            from langchain_community.tools import DuckDuckGoSearchRun
+
+            self.search_tool = DuckDuckGoSearchRun()
+        except Exception:
+            self.search_tool = None
+
+        self.prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a research assistant. Produce concise, accurate findings.
+            Prefer practical bullet points. If search snippets are provided, ground your answer in them."""),
+            ("human", """Research topic: {query}
+
+Search snippets:
+{search_results}
+
+Provide detailed findings focused on accuracy and relevance."""),
+        ])
+
     def research(self, task: Task, context: dict = None) -> dict:
-        """Perform research for a task"""
+        """Perform research for a task."""
         query = task["description"]
-        
         if context:
             query = f"{query}\n\nContext from previous tasks: {context}"
-        
-        research_prompt = f"""Research the following topic comprehensively:
-        {query}
-        
-        Provide detailed findings with sources. Focus on accuracy and relevance."""
-        
+
+        search_results = "No live search available; use your knowledge."
+        if self.search_tool:
+            try:
+                search_results = self.search_tool.run(query[:240])
+            except Exception as e:
+                search_results = f"Search unavailable ({e}). Use your knowledge."
+
         try:
-            if self.agent:
-                result = self.agent.invoke({"input": research_prompt})
-                output = result["output"] if isinstance(result, dict) else str(result)
-            else:
-                # Fallback: direct search
-                output = self.search_tool.run(query)
-            
+            response = (self.prompt | self.llm).invoke({
+                "query": query,
+                "search_results": search_results,
+            })
+            output = response.content
             return {
                 "task_id": task["id"],
                 "findings": output,
-                "sources": self._extract_sources(output),
+                "sources": self._extract_sources(f"{output}\n{search_results}"),
                 "status": TaskStatus.COMPLETED,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
         except Exception as e:
             return {
@@ -85,12 +58,14 @@ class ResearcherAgent:
                 "findings": f"Research error: {str(e)}",
                 "sources": [],
                 "status": TaskStatus.FAILED,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-    
-    def _extract_sources(self, text: str) -> list:
-        """Extract source URLs from research text"""
-        import re
-        urls = re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', text)
-        return urls[:5]
 
+    def _extract_sources(self, text: str) -> list:
+        import re
+
+        urls = re.findall(
+            r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
+            text,
+        )
+        return urls[:5]
