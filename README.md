@@ -1,4 +1,4 @@
-# Infosys Agentic AI Training - Labs Repository
+# Agentic AI Training - Labs Repository
 
 ## Overview
 
@@ -21,15 +21,15 @@ labs/
 ### Prerequisites
 
 - Python 3.11 or higher
-- OpenAI API Key
+- OpenAI API Key (or Vertex AI access)
 - Git
 
 ### Setup
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/VinayKDH/Infosys_Agentic.git
-   cd Infosys_Agentic
+   git clone https://github.com/VinayKDH/Agentic_AI_Training.git
+   cd Agentic_AI_Training
    ```
 
 2. **Navigate to a lab:**
@@ -95,8 +95,7 @@ Each lab directory contains:
 
 ## Important Notes
 
-- **This is a read-only repository** - You can clone and use the code, but cannot push changes
-- **API Keys Required:** You'll need your own OpenAI API key for the labs
+- **API Keys Required:** You'll need your own LLM API access for the labs
 - **Python Version:** Recommended Python 3.11 or higher
 
 ## Support
@@ -105,9 +104,4 @@ For issues or questions, please refer to the lab-specific README files in each d
 
 ## License
 
-This repository is for educational purposes as part of the Infosys Agentic AI Training Program.
-
----
-
-**Note:** This repository is public and read-only. All code is provided for learning and reference purposes.
-
+This repository is for educational purposes as part of the Agentic AI Training Program.

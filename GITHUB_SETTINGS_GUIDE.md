@@ -4,7 +4,7 @@
 
 ### 1. Set Default Branch to Main
 
-1. Go to your repository: `https://github.com/VinayKDH/Infosys_Agentic`
+1. Go to your repository: `https://github.com/VinayKDH/Agentic_AI_Training`
 2. Click **Settings** (top right, gear icon)
 3. Click **Branches** (left sidebar)
 4. Under **Default branch**, select `main`
@@ -67,8 +67,8 @@ mkdir test-public-clone
 cd test-public-clone
 
 # Clone the repository
-git clone https://github.com/VinayKDH/Infosys_Agentic.git
-cd Infosys_Agentic
+git clone https://github.com/VinayKDH/Agentic_AI_Training.git
+cd Agentic_AI_Training
 
 # Check branches
 git branch -a
@@ -93,4 +93,3 @@ git push origin test-branch
    - Approve and merge
 3. **Secrets:** Double-check that no `.env` files with API keys are committed
 4. **`.gitignore`:** Ensure sensitive files are in `.gitignore`
-

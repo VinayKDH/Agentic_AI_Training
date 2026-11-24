@@ -54,3 +54,6 @@ vector_store/
 *.tmp
 *.temp
 
+
+# Local virtualenvs
+**/lab2venv/

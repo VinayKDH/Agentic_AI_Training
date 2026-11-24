@@ -53,8 +53,8 @@ The Day2 branch has been removed from the remote repository. If you need to acce
 ### Standard Clone (Main Branch Only)
 
 ```bash
-git clone https://github.com/VinayKDH/Infosys_Agentic.git
-cd Infosys_Agentic
+git clone https://github.com/VinayKDH/Agentic_AI_Training.git
+cd Agentic_AI_Training
 # You'll be on main branch by default
 ```
 
@@ -88,7 +88,7 @@ This is expected - the repository is read-only for public users.
 - All labs from main
 - Trainer guides
 - Documentation
-- Additional projects (Amex, CustomerSupportAgent)
+- Additional projects (for example CustomerSupportAgent)
 
 ## Security Notes
 
@@ -103,9 +103,8 @@ To verify the setup:
 
 ```bash
 # Clone as a new user would
-git clone https://github.com/VinayKDH/Infosys_Agentic.git test-clone
+git clone https://github.com/VinayKDH/Agentic_AI_Training.git test-clone
 cd test-clone
 git branch -a
 # Should only show main branch
 ```
-
