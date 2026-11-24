@@ -1,160 +1,64 @@
-# Customer Support Email Agent
+# Customer Support Email Agent (Enterprise)
 
-A LangGraph-based customer support email agent that automatically handles incoming customer emails by classifying them, searching documentation, creating bug tickets, and drafting responses.
+LangGraph customer-support email agent with enterprise guardrails, SLA-aware routing, secret redaction, compliance checks, and optional human-in-the-loop review.
 
-## Overview
+## Capabilities
 
-This agent implements the patterns described in the [LangGraph Thinking Guide](https://docs.langchain.com/oss/python/langgraph/thinking-in-langgraph). It demonstrates:
-
-- **Discrete node design**: Each step is a separate node function
-- **State management**: Shared state passed between nodes
-- **Conditional routing**: Dynamic flow based on email classification
-- **Error handling**: Graceful error handling at each step
-- **Human-in-the-loop**: Support for human review when needed
-
-## Features
-
-The agent handles:
-
-1. **Simple product questions**: "How do I reset my password?"
-2. **Bug reports**: "The export feature crashes when I select PDF format"
-3. **Urgent billing issues**: "I was charged twice for my subscription!"
-4. **Feature requests**: "Can you add dark mode to the mobile app?"
-5. **Complex technical issues**: "Our API integration fails intermittently with 504 errors"
-
-## Architecture
-
-### Nodes
-
-1. **read_email**: Parses and extracts email content
-2. **classify_intent**: Classifies email by intent and urgency using LLM
-3. **doc_search**: Searches knowledge base/documentation
-4. **bug_tracking**: Creates bug tickets in tracking system
-5. **draft_response**: Generates appropriate email response
-6. **human_review**: Determines if human review is needed
-7. **send_reply**: Sends final email response
-
-### State
-
-The `EmailAgentState` includes:
-- Raw email data (content, sender, ID)
-- Classification results
-- Search results and customer history
-- Draft and final responses
-- Human review flags
-- Error tracking
-
-### Routing Logic
-
-- **Bug reports** → bug_tracking → draft_response
-- **Questions** → doc_search → draft_response
-- **Critical/Complex** → human_review → send_reply
-- **Others** → draft_response → human_review → send_reply
+1. Inbound email validation + secret redaction  
+2. Intent/urgency/sentiment classification with SLA targets  
+3. Knowledge-base / web doc search for product questions  
+4. Bug ticket creation for defect reports  
+5. Policy-aware response drafting  
+6. Human review gate for billing / complex / critical cases  
+7. Outbound compliance scan before send  
 
 ## Setup
 
-1. **Install dependencies**:
 ```bash
+cd labs/CustomerSupportAgent
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
+source ../.env.azure
+export LLM_PROVIDER=azure
 ```
 
-2. **Set up environment variables**:
-Create a `.env` file:
-```
-OPENAI_API_KEY=your_api_key_here
-```
+## Run
 
-3. **Run the agent**:
+Non-interactive demo:
 ```bash
-python main.py
+./venv/bin/python demo.py
 ```
 
-## Usage
-
-The agent provides an interactive interface where you can:
-
-1. **Process example emails**: Test with pre-defined scenarios
-2. **Enter custom emails**: Process your own email content
-3. **View results**: See classification, search results, and generated responses
-
-## Example Workflow
-
-```
-Email: "How do I reset my password?"
-
-1. read_email → Extracts email content
-2. classify_intent → Classifies as "question" (low urgency)
-3. doc_search → Finds password reset documentation
-4. draft_response → Generates helpful response with instructions
-5. human_review → Auto-approves (low urgency)
-6. send_reply → Sends response to customer
+Interactive:
+```bash
+./venv/bin/python main.py
 ```
 
-## Key Design Patterns
-
-### 1. Discrete Steps
-Each node does one specific thing, making the workflow:
-- Easy to debug (inspect state between steps)
-- Resumable (checkpoints at node boundaries)
-- Observable (see progress at each step)
-
-### 2. State as Shared Memory
-State stores raw data, not formatted text:
-- Different nodes can format data differently
-- Easy to change prompts without modifying state
-- Clear debugging (see exactly what each node received)
-
-### 3. Conditional Routing
-Nodes make routing decisions using `Command` objects:
-- Explicit flow control
-- Traceable decisions
-- Easy to understand what happens next
-
-### 4. Error Handling
-Different error types handled appropriately:
-- Transient failures: Retry with exponential backoff
-- LLM errors: Fallback to human review
-- Unexpected errors: Log and escalate
-
-## Extending the Agent
-
-### Add Real Email Integration
-Replace `read_email` to connect to:
-- IMAP/SMTP servers
-- Email APIs (SendGrid, Mailgun)
-- Webhook endpoints
-
-### Add Vector Search
-Replace simple keyword search with:
-- FAISS vector store
-- Pinecone/Weaviate
-- Embedding-based similarity search
-
-### Add Real Bug Tracking
-Connect `bug_tracking` to:
-- Jira
-- GitHub Issues
-- Linear
-- Custom ticketing system
-
-### Add Human-in-the-Loop
-Use `interrupt()` for real human review:
-```python
-from langgraph.types import interrupt
-
-def human_review(state):
-    if requires_review:
-        interrupt()  # Pauses execution
-        # Resume with human input
+Enable real HITL interrupts:
+```bash
+export ENABLE_HITL=true
+./venv/bin/python main.py
 ```
 
-## References
+## Architecture
 
-- [LangGraph Thinking Guide](https://docs.langchain.com/oss/python/langgraph/thinking-in-langgraph)
-- [LangGraph Documentation](https://python.langchain.com/docs/langgraph)
-- [LangGraph State Management](https://python.langchain.com/docs/langgraph/concepts/low_level#state)
+`read_email → classify_intent → (doc_search | bug_tracking | draft_response | human_review) → draft_response → human_review → send_reply`
 
-## License
+## Project layout
 
-This is an educational example based on LangGraph patterns.
-
+```
+CustomerSupportAgent/
+├── main.py
+├── demo.py
+├── graph.py
+├── nodes.py
+├── state.py
+└── utils/
+    ├── constants.py
+    ├── llm.py
+    ├── guardrails.py
+    ├── policies.py
+    ├── observability.py
+    └── resilience.py
+```

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Non-interactive Day2 Advanced demo (HITL disabled for automation)."""
+"""Non-interactive Day2 Advanced enterprise demo (HITL disabled)."""
 
 from __future__ import annotations
 
@@ -9,11 +9,11 @@ import sys
 from dotenv import load_dotenv
 
 load_dotenv()
+load_dotenv(dotenv_path="../.env.azure", override=False)
 
-os.environ.setdefault("LLM_PROVIDER", "vertex")
-os.environ.setdefault("GCP_PROJECT", "testkuberiq")
-os.environ.setdefault("VERTEX_LOCATION", "us-central1")
-os.environ.setdefault("VERTEX_MODEL", "gemini-2.5-flash")
+os.environ.setdefault("LLM_PROVIDER", "azure")
+os.environ.setdefault("AZURE_OPENAI_CHAT_DEPLOYMENT", "gpt-4.1-mini")
+os.environ.setdefault("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
 
 broken_adc = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
 if broken_adc and not os.path.exists(broken_adc):
@@ -27,9 +27,10 @@ from utils.llm import active_model_label
 def main() -> None:
     query = " ".join(sys.argv[1:]).strip() or DEMO_QUERY
     print("=" * 70)
-    print("Day 2 Advanced — Multi-Agent Demo")
+    print("Day 2 Advanced — Enterprise Multi-Agent Demo")
     print("=" * 70)
     print("Flow: Planner → Dispatch → Researcher/Coder → Reviewer → Synthesizer")
+    print("Gates: input guardrails · policy checks · quality scoring · audit trail")
     print(f"LLM: {active_model_label()}")
     print(f"\nQuery: {query}")
     print("-" * 70)
@@ -47,6 +48,8 @@ def main() -> None:
     print("=" * 70)
     print(result.get("final_output") or "(empty)")
     print("\n" + "=" * 70)
+    print(MultiAgentGraph.format_report(result))
+    print("=" * 70)
     tasks = result.get("tasks", [])
     completed = [
         task
@@ -59,6 +62,7 @@ def main() -> None:
     print(f"- Research findings: {len(result.get('research_findings', []))}")
     print(f"- Code artifacts: {len(result.get('code_artifacts', []))}")
     print(f"- Reviews: {len(result.get('review_feedback', []))}")
+    print(f"- Compliance: {(result.get('compliance') or {}).get('verdict', 'n/a')}")
     print("=" * 70)
 
 

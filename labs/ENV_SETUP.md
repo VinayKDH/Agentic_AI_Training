@@ -1,56 +1,57 @@
-# Environment Setup Guide
+# Environment Setup Guide (Students)
 
-## Creating .env Files
+Labs load credentials from local env files. **Do not commit secrets.**
 
-For each lab, create a `.env` file in the lab directory with the following content:
+## Option A — Shared Azure file (recommended)
 
-### Day 1 Medium & Day 2 Medium
-```env
-OPENAI_API_KEY=your_openai_api_key_here
+```bash
+cd labs
+cp .env.azure.example .env.azure
+# edit labs/.env.azure with your Azure OpenAI endpoint + key + deployment
 ```
 
-### Day 1 Advanced
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-LANGCHAIN_TRACING_V2=false
-LANGCHAIN_API_KEY=
-LANGCHAIN_PROJECT=agentic-ai-lab
+Then in each lab:
+
+```bash
+set -a; source ../.env.azure; set +a
+export LLM_PROVIDER=azure
 ```
 
-### Day 2 Advanced
+See [AZURE_AI_SETUP.md](AZURE_AI_SETUP.md) for details.
+
+## Option B — Per-lab `.env`
+
+Create a `.env` inside the lab folder:
+
+### OpenAI
 ```env
+LLM_PROVIDER=openai
 OPENAI_API_KEY=your_openai_api_key_here
-LANGCHAIN_TRACING_V2=false
-LANGCHAIN_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
 ```
 
-### Day 3 Medium
+### Azure OpenAI
 ```env
-OPENAI_API_KEY=your_openai_api_key_here
+LLM_PROVIDER=azure
+AZURE_OPENAI_ENDPOINT=https://YOUR-RESOURCE.openai.azure.com/
+AZURE_OPENAI_API_KEY=YOUR_AZURE_OPENAI_KEY
+AZURE_OPENAI_API_VERSION=2024-12-01-preview
+AZURE_OPENAI_CHAT_DEPLOYMENT=gpt-4.1-mini
 ```
 
-### Day 3 Advanced
+### Day 3 Advanced extras
 ```env
-OPENAI_API_KEY=your_openai_api_key_here
-SECRET_KEY=your-secret-key-change-in-production
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_ENABLED=true
-LANGCHAIN_TRACING_V2=false
-LANGCHAIN_API_KEY=
-LANGCHAIN_PROJECT=agentic-ai-production
+SECRET_KEY=change-me-for-local-dev
+REDIS_ENABLED=false
 ```
 
-## Getting Your OpenAI API Key
+## Getting keys
 
-1. Go to https://platform.openai.com/api-keys
-2. Sign in or create an account
-3. Click "Create new secret key"
-4. Copy the key and paste it in your `.env` file
+- **Azure OpenAI**: Azure Portal → your OpenAI resource → Keys and Endpoint + Model deployments
+- **OpenAI**: https://platform.openai.com/api-keys
 
-## Important Notes
+## Important
 
-- Never commit `.env` files to version control
-- Keep your API keys secure
-- The `.env` file should be in the same directory as `main.py` or the entry point
-
+- `.env` and `.env.azure` are gitignored
+- Only templates like `.env.azure.example` should be shared
+- Instructors: never paste live keys into the repo, README, or slides

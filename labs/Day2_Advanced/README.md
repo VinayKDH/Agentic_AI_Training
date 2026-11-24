@@ -1,24 +1,27 @@
-# Day 2 - Advanced Lab: Modern Multi-Agent System (LangGraph + LangChain)
+# Day 2 - Advanced Lab: Enterprise Multi-Agent System (LangGraph + LangChain)
 
-Build a production-style multi-agent workflow with the **latest LangChain/LangGraph** capabilities.
+Production-style multi-agent workflow with enterprise guardrails, policy gates, retries, and auditability.
 
 ## What this lab demonstrates
 
 - **StateGraph orchestration** with typed state + reducers
-- **Command-based routing** (update state + choose next node)
+- **Command-based routing** with dependency-aware dispatch
 - **Tool-calling researcher** via `langchain.agents.create_agent`
-- **Structured outputs** for planner, coder, and reviewer
+- **Structured outputs** for planner, coder, and reviewer (risk, priority, acceptance criteria)
+- **Enterprise gates**: input validation, secret scanning, policy checklist, quality scoring
+- **Resilience**: exponential backoff retries for transient LLM/tool failures
+- **Observability**: run IDs, node timings, audit trail, compliance verdict
 - **Checkpointing** with `MemorySaver`
 - **Human-in-the-loop** via `interrupt()` / `Command(resume=...)`
 - **Streaming** node updates for demos
 
 ## Agents
 
-1. **Planner** – breaks the query into researcher/coder tasks
-2. **Researcher** – tool-using research agent (`web_search`)
-3. **Coder** – generates structured code artifacts
-4. **Reviewer** – structured approve/revise decisions (+ optional HITL)
-5. **Synthesizer** – final answer assembly
+1. **Planner** – enterprise plan with acceptance criteria, risk, priority
+2. **Researcher** – tool-using research with sources and risk callouts
+3. **Coder** – secure, runnable code with usage + security notes
+4. **Reviewer** – policy-aware approve/revise (+ optional HITL)
+5. **Synthesizer** – executive-ready final delivery summary
 
 ## Setup
 
@@ -31,38 +34,55 @@ pip install -r requirements.txt
 
 ### LLM providers
 
-**Option A — Vertex AI (default)**
+**Option A — Azure OpenAI (default)**
+```bash
+export LLM_PROVIDER=azure
+# or: source ../.env.azure
+```
+
+**Option B — Vertex AI**
 ```bash
 export LLM_PROVIDER=vertex
 export GCP_PROJECT=testkuberiq
 export VERTEX_LOCATION=us-central1
 export VERTEX_MODEL=gemini-2.5-flash
-# Ensure gcloud auth is available
-gcloud auth login
-gcloud auth application-default login   # optional but recommended
 ```
 
-**Option B — OpenAI**
+**Option C — OpenAI**
 ```bash
 export LLM_PROVIDER=openai
 export OPENAI_API_KEY=sk-...
-export OPENAI_MODEL=gpt-4o-mini
 ```
 
 ## Run
 
-Interactive (enter your own prompts, supports HITL):
+### Web UI (recommended)
+
 ```bash
-unset GOOGLE_APPLICATION_CREDENTIALS   # if pointing to a missing file
+source venv/bin/activate
+source ../.env.azure
+export LLM_PROVIDER=azure
+pip install -r requirements.txt
+python run_ui.py
+```
+
+Open [http://127.0.0.1:7860](http://127.0.0.1:7860)
+
+Select a lab (Day 2 Advanced, Day 3 Medium/Advanced, or Customer Support), click **Run**, and stream live updates plus the enterprise run report. HITL is available for Day 2 and Customer Support.
+
+### CLI
+
+Interactive:
+```bash
 python main.py
 ```
 
-One-shot demo with streaming (HITL off):
+One-shot demo:
 ```bash
-python demo.py "Create a minimal FastAPI hello endpoint"
+./venv/bin/python demo.py "Create a minimal FastAPI hello endpoint"
 ```
 
-Disable human review interrupts:
+Disable HITL:
 ```bash
 export ENABLE_HITL=false
 python main.py
@@ -72,31 +92,22 @@ python main.py
 
 ```
 Day2_Advanced/
-├── main.py                     # Interactive runner + HITL resume
-├── demo.py                     # Non-interactive streaming demo
-├── state.py                    # Typed state + reducers
+├── run_ui.py                   # Launch Agent Desk web UI
+├── main.py
+├── demo.py
+├── state.py
+├── ui/
+│   ├── app.py                  # FastAPI + SSE
+│   ├── service.py
+│   └── static/                 # Console frontend
 ├── agents/
-│   ├── planner.py
-│   ├── researcher.py
-│   ├── coder.py
-│   └── reviewer.py
 ├── graph/
-│   └── multi_agent_graph.py    # Command routing + interrupt
 ├── tools/
-│   └── web_search.py
 └── utils/
-    ├── constants.py
-    ├── llm.py
-    └── routing.py
 ```
 
-## Suggested demo prompts
+## Suggested prompts
 
 - `Create a minimal FastAPI hello endpoint`
 - `Research LangGraph Command routing and show a tiny example`
 - `Write a Python function for Fibonacci with tests`
-
-## Notes
-
-- Needs a valid LLM backend (Vertex or OpenAI). `git pull` alone is not enough.
-- If review rejects work and HITL is enabled, the graph pauses for your decision.

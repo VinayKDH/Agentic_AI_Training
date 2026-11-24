@@ -1,4 +1,4 @@
-"""LangGraph state schema for the Day2 Advanced multi-agent system."""
+"""LangGraph state schema for the Day2 Advanced enterprise multi-agent system."""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ class TaskStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     NEEDS_REVIEW = "needs_review"
+    BLOCKED = "blocked"
 
 
 class Task(TypedDict, total=False):
@@ -31,12 +32,19 @@ class Task(TypedDict, total=False):
     status: TaskStatus
     result: Optional[str]
     dependencies: List[str]
+    acceptance_criteria: List[str]
+    risk_level: str
+    priority: str
     created_at: str
     completed_at: Optional[str]
 
 
 def merge_dicts(left: List[Dict[str, Any]], right: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Append-only reducer for artifact lists."""
+    return (left or []) + (right or [])
+
+
+def merge_strings(left: List[str], right: List[str]) -> List[str]:
     return (left or []) + (right or [])
 
 
@@ -73,6 +81,12 @@ class MultiAgentState(TypedDict, total=False):
     final_output: str
     iteration_count: int
     agent_history: Annotated[List[Dict[str, Any]], merge_dicts]
-    errors: Annotated[List[str], merge_dicts]
+    errors: Annotated[List[str], merge_strings]
+    policy_violations: Annotated[List[str], merge_strings]
     requires_human_input: bool
     human_feedback: Optional[str]
+    run_id: str
+    run_metadata: Dict[str, Any]
+    metrics: Dict[str, Any]
+    compliance: Dict[str, Any]
+    guardrail_status: Dict[str, Any]

@@ -1,61 +1,50 @@
-# Day 3 - Advanced Level Lab: Production-Ready Agentic API
+# Day 3 - Advanced: Enterprise Agentic API
 
-## Setup Instructions
+Production-style FastAPI service with JWT auth, metrics, caching hooks, and enterprise LLM gates.
 
-**Recommended: Python 3.11**
+## Enterprise additions
 
-1. Create a virtual environment:
+- Azure OpenAI / OpenAI provider factory (`LLM_PROVIDER=azure` default)
+- Input guardrails (injection markers, secrets, length)
+- Output secret scanning
+- Multi-node LangGraph flow: guardrails → agent → compliance
+- Audit trail + compliance verdict in response metadata
+- Redis optional for local demos (`REDIS_ENABLED=false` by default)
+
+## Setup
+
 ```bash
-python3.11 -m venv venv
-# Or if python3.11 is your default:
-python -m venv venv
-
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-2. Install dependencies:
-```bash
+cd labs/Day3_Advanced
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
+source ../.env.azure
+export LLM_PROVIDER=azure
 ```
 
-3. Create a `.env` file:
-```
-OPENAI_API_KEY=your_key_here
-SECRET_KEY=your-secret-key-here
-REDIS_HOST=localhost
-REDIS_ENABLED=true
-```
-
-4. Start Redis (if using Docker):
-```bash
-docker run -d -p 6379:6379 redis:7-alpine
-```
-
-5. Run the server:
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-## Docker Deployment
+## Run
 
 ```bash
-cd docker
-docker-compose up --build
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-## Features
+- API: http://localhost:8001
+- Docs: http://localhost:8001/docs
+- Health: http://localhost:8001/health
 
-- ✅ Authentication (JWT)
-- ✅ Caching (Redis)
-- ✅ Rate Limiting
-- ✅ Monitoring (Prometheus metrics)
-- ✅ Health Checks
-- ✅ Structured Logging
+## Auth
 
-## Access
+```bash
+curl -X POST http://localhost:8001/api/v1/login \
+  -d "username=admin&password=admin123"
+```
 
-- API: http://localhost:8000
-- Docs: http://localhost:8000/docs
-- Metrics: http://localhost:8000/api/v1/metrics
-- Health: http://localhost:8000/health
+## Query
 
+```bash
+TOKEN=... # from login
+curl -X POST http://localhost:8001/api/v1/query \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"Summarize FastAPI health-check best practices"}'
+```

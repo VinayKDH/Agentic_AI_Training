@@ -1,4 +1,4 @@
-"""Shared LLM factory supporting Vertex AI and OpenAI."""
+"""Shared LLM factory supporting Azure OpenAI, Vertex AI, and OpenAI."""
 
 from __future__ import annotations
 
@@ -9,9 +9,12 @@ from functools import lru_cache
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from utils.constants import (
+    AZURE_OPENAI_API_VERSION,
+    AZURE_OPENAI_DEPLOYMENT,
     DEFAULT_LLM_PROVIDER,
     DEFAULT_TEMPERATURE,
     GCP_PROJECT,
+    LLM_PROVIDER_AZURE,
     LLM_PROVIDER_OPENAI,
     LLM_PROVIDER_VERTEX,
     OPENAI_MODEL,
@@ -50,6 +53,35 @@ def get_llm(temperature: float = DEFAULT_TEMPERATURE) -> BaseChatModel:
     """Return a chat model based on LLM_PROVIDER env var."""
     provider = os.getenv("LLM_PROVIDER", DEFAULT_LLM_PROVIDER).lower().strip()
 
+    if provider == LLM_PROVIDER_AZURE:
+        from langchain_openai import AzureChatOpenAI
+
+        endpoint = os.getenv("AZURE_OPENAI_ENDPOINT") or os.getenv("OPENAI_API_BASE")
+        api_key = os.getenv("AZURE_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+        deployment = (
+            os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT")
+            or os.getenv("AZURE_OPENAI_DEPLOYMENT")
+            or AZURE_OPENAI_DEPLOYMENT
+        )
+        api_version = (
+            os.getenv("AZURE_OPENAI_API_VERSION")
+            or os.getenv("OPENAI_API_VERSION")
+            or AZURE_OPENAI_API_VERSION
+        )
+        if not endpoint or not api_key:
+            raise ValueError(
+                "AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY are required "
+                "when LLM_PROVIDER=azure"
+            )
+
+        return AzureChatOpenAI(
+            azure_endpoint=endpoint,
+            api_key=api_key,
+            api_version=api_version,
+            azure_deployment=deployment,
+            temperature=temperature,
+        )
+
     if provider == LLM_PROVIDER_VERTEX:
         from langchain_google_vertexai import ChatVertexAI
 
@@ -79,6 +111,13 @@ def get_llm(temperature: float = DEFAULT_TEMPERATURE) -> BaseChatModel:
 
 def active_model_label() -> str:
     provider = os.getenv("LLM_PROVIDER", DEFAULT_LLM_PROVIDER)
+    if provider == LLM_PROVIDER_AZURE:
+        deployment = (
+            os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT")
+            or os.getenv("AZURE_OPENAI_DEPLOYMENT")
+            or AZURE_OPENAI_DEPLOYMENT
+        )
+        return f"{provider}/{deployment}"
     if provider == LLM_PROVIDER_VERTEX:
         return f"{provider}/{os.getenv('VERTEX_MODEL', VERTEX_MODEL)}"
     return f"{provider}/{os.getenv('OPENAI_MODEL', OPENAI_MODEL)}"

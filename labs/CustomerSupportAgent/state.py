@@ -1,46 +1,47 @@
-"""
-State definition for Customer Support Email Agent
-Based on LangGraph thinking patterns
-"""
-from typing import TypedDict, Literal, Optional, List, Dict, Any
-from langchain_core.messages import BaseMessage
-import operator
-from typing import Annotated
+"""Enterprise state schema for Customer Support Email Agent."""
 
-# Define the structure for email classification
+from __future__ import annotations
+
+from typing import Annotated, Any, Dict, List, Literal, Optional, TypedDict
+
+import operator
+from langchain_core.messages import BaseMessage
+
+
 class EmailClassification(TypedDict):
     intent: Literal["question", "bug", "billing", "feature", "complex"]
     urgency: Literal["low", "medium", "high", "critical"]
     topic: str
     summary: str
+    sentiment: str
+    sla_hours: int
 
-class EmailAgentState(TypedDict):
-    """State schema for the email support agent"""
-    # Raw email data
+
+class EmailAgentState(TypedDict, total=False):
     email_content: str
     sender_email: str
     email_id: str
-    
-    # Classification result
+
     classification: Optional[EmailClassification]
-    
-    # Raw search/API results
-    search_results: Optional[List[str]]  # List of raw document chunks
-    customer_history: Optional[Dict[str, Any]]  # Raw customer data from CRM
-    bug_ticket_id: Optional[str]  # Ticket ID if bug was created
-    
-    # Generated content
+    search_results: Optional[List[str]]
+    customer_history: Optional[Dict[str, Any]]
+    bug_ticket_id: Optional[str]
+
     draft_response: Optional[str]
     final_response: Optional[str]
-    
-    # Messages for conversation tracking
+
     messages: Annotated[List[BaseMessage], operator.add]
-    
-    # Human review
+
     requires_human_review: bool
     human_approved: Optional[bool]
     human_edited_response: Optional[str]
-    
-    # Execution metadata
-    errors: Annotated[List[str], operator.add]
+    enable_hitl: bool
 
+    errors: Annotated[List[str], operator.add]
+    policy_violations: Annotated[List[str], operator.add]
+    guardrail_status: Dict[str, Any]
+    compliance: Dict[str, Any]
+    run_id: str
+    run_metadata: Dict[str, Any]
+    metrics: Dict[str, Any]
+    audit_trail: Annotated[List[Dict[str, Any]], operator.add]

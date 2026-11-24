@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent Desk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Sora:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true"></div>
+    <div class="app">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow" id="lab-eyebrow">Agentic AI Training</p>
+          <h1 id="app-title">Agent Desk</h1>
+          <p id="app-subtitle" class="subtitle">
+            Select a lab and run enterprise agent workflows
+          </p>
+        </div>
+        <div class="hero-meta">
+          <div class="meta-pill">
+            <span class="meta-label">Model</span>
+            <span id="model-label">…</span>
+          </div>
+          <div class="meta-pill">
+            <span class="meta-label">Selected lab</span>
+            <span id="selected-lab-label">…</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="composer" aria-label="Lab runner">
+          <label for="lab-select">Training lab</label>
+          <select id="lab-select"></select>
+          <p id="lab-description" class="lab-description"></p>
+
+          <label for="query-input" id="query-label">What should the agents deliver?</label>
+          <textarea
+            id="query-input"
+            rows="5"
+            placeholder="Describe the outcome you need…"
+          ></textarea>
+
+          <div class="composer-row">
+            <label class="toggle" id="hitl-wrap">
+              <input type="checkbox" id="hitl-toggle" />
+              <span>Human review gate</span>
+            </label>
+            <button id="run-btn" type="button">Run lab</button>
+          </div>
+
+          <div class="examples" id="examples"></div>
+          <ol class="pipeline" id="pipeline" aria-label="Agent pipeline"></ol>
+        </section>
+
+        <section class="stage" aria-label="Live run stage">
+          <div class="stage-header">
+            <h2>Live run</h2>
+            <span id="run-status" class="status idle">Idle</span>
+          </div>
+
+          <div id="timeline" class="timeline"></div>
+
+          <div id="hitl-panel" class="hitl hidden">
+            <h3>Human review required</h3>
+            <pre id="hitl-details"></pre>
+            <div class="hitl-actions">
+              <button type="button" data-decision="approve">Approve</button>
+              <button type="button" data-decision="revise" class="ghost">
+                Request revise
+              </button>
+            </div>
+            <label for="hitl-guidance">Or send guidance</label>
+            <div class="hitl-guide">
+              <input id="hitl-guidance" type="text" placeholder="Guidance for the agents…" />
+              <button id="hitl-send" type="button">Send</button>
+            </div>
+          </div>
+
+          <article class="output-panel">
+            <div class="output-header">
+              <h2>Final output</h2>
+              <span id="compliance-badge" class="badge">—</span>
+            </div>
+            <pre id="final-output" class="output-body">Waiting for a run…</pre>
+          </article>
+
+          <aside class="report-panel">
+            <h2>Run report</h2>
+            <pre id="run-report" class="report-body">No metrics yet.</pre>
+            <div id="task-list" class="task-list"></div>
+          </aside>
+        </section>
+      </main>
+    </div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

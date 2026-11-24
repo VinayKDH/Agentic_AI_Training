@@ -7,6 +7,7 @@ __pycache__/
 env/
 venv/
 ENV/
+.build/
 build/
 develop-eggs/
 dist/
@@ -26,34 +27,47 @@ wheels/
 # Virtual environments
 agentic_ai_env/
 .venv/
+**/venv/
+**/lab2venv/
 
-# Environment variables
+# Environment / secrets — never commit
 .env
+.env.*
+!.env.example
+!.env.*.example
 .env.local
+.env.azure
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+**/.env.azure
+**/credentials*.json
+**/service-account*.json
+**/*api_key*
+**/*secret*
 
-# IDE
+# IDE / OS
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
 Thumbs.db
+**/~$*
 
-# Logs
+# Logs / caches
 *.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# Vector stores
+# Vector stores / local data
 vector_store/
 *.faiss
 *.pkl
 
-# Temporary files
+# Temporary
 *.tmp
 *.temp
-
-
-# Local virtualenvs
-**/lab2venv/

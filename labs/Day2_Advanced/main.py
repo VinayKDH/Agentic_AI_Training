@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interactive Day2 Advanced multi-agent demo with HITL resume support."""
+"""Interactive Day2 Advanced enterprise multi-agent demo with HITL resume."""
 
 from __future__ import annotations
 
@@ -13,11 +13,11 @@ from utils.constants import DEFAULT_THREAD_ID
 from utils.llm import active_model_label
 
 load_dotenv()
+load_dotenv(dotenv_path="../.env.azure", override=False)
 
-os.environ.setdefault("LLM_PROVIDER", "vertex")
-os.environ.setdefault("GCP_PROJECT", "testkuberiq")
-os.environ.setdefault("VERTEX_LOCATION", "us-central1")
-os.environ.setdefault("VERTEX_MODEL", "gemini-2.5-flash")
+os.environ.setdefault("LLM_PROVIDER", "azure")
+os.environ.setdefault("AZURE_OPENAI_CHAT_DEPLOYMENT", "gpt-4.1-mini")
+os.environ.setdefault("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
 
 broken_adc = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
 if broken_adc and not os.path.exists(broken_adc):
@@ -31,12 +31,14 @@ def _print_stats(result: dict) -> None:
         for task in tasks
         if getattr(task.get("status"), "value", task.get("status")) == "completed"
     ]
+    print("\n" + MultiAgentGraph.format_report(result))
     print("\nStatistics:")
     print(f"- Tasks total: {len(tasks)}")
     print(f"- Tasks completed: {len(completed)}")
     print(f"- Research findings: {len(result.get('research_findings', []))}")
     print(f"- Code artifacts: {len(result.get('code_artifacts', []))}")
     print(f"- Reviews: {len(result.get('review_feedback', []))}")
+    print(f"- Compliance: {(result.get('compliance') or {}).get('verdict', 'n/a')}")
     print("=" * 70)
 
 
@@ -49,7 +51,6 @@ def _handle_interrupt(graph: MultiAgentGraph, config: dict, result) -> dict:
         if not interrupts:
             state = graph.get_state(config)
             if state and state.next:
-                # Interrupted but payload already consumed from invoke return
                 print("\n[HITL] Graph paused for human input.")
                 decision = input(
                     "Enter decision (approve/revise/guidance), or 'exit': "
@@ -62,11 +63,15 @@ def _handle_interrupt(graph: MultiAgentGraph, config: dict, result) -> dict:
 
         payload = interrupts[0].value if hasattr(interrupts[0], "value") else interrupts[0]
         print("\n" + "=" * 70)
-        print("HUMAN-IN-THE-LOOP REVIEW GATE")
+        print("ENTERPRISE HUMAN-IN-THE-LOOP REVIEW GATE")
         print("=" * 70)
         if isinstance(payload, dict):
             print(f"Task: {payload.get('task')}")
             print(f"Score: {payload.get('score')}")
+            if payload.get("policy_violations"):
+                print("Policy violations:")
+                for item in payload["policy_violations"]:
+                    print(f"  - {item}")
             print(f"Feedback:\n{payload.get('feedback')}")
             print(f"\n{payload.get('prompt')}")
         else:
@@ -81,13 +86,15 @@ def _handle_interrupt(graph: MultiAgentGraph, config: dict, result) -> dict:
 
 def main() -> None:
     print("=" * 70)
-    print("Day 2 Advanced — Modern Multi-Agent System")
+    print("Day 2 Advanced — Enterprise Multi-Agent System")
     print("=" * 70)
     print("\nCapabilities:")
     print("- LangGraph StateGraph + MemorySaver checkpoints")
-    print("- Command-based routing")
+    print("- Command-based routing with dependency-aware dispatch")
     print("- Tool-calling researcher (create_agent)")
-    print("- Structured planner/coder/reviewer outputs")
+    print("- Structured planner/coder/reviewer with risk + acceptance criteria")
+    print("- Input guardrails, secret scanning, policy quality gates")
+    print("- Retry/backoff, audit trail, compliance verdict")
     print("- Human-in-the-loop interrupt() on review rejection")
     print(f"\nLLM: {active_model_label()}")
     print("\n" + "=" * 70)
