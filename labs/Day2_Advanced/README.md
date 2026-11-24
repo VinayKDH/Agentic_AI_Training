@@ -8,12 +8,23 @@ Production-style multi-agent workflow with enterprise guardrails, policy gates, 
 - **Command-based routing** with dependency-aware dispatch
 - **Tool-calling researcher** via `langchain.agents.create_agent`
 - **Structured outputs** for planner, coder, and reviewer (risk, priority, acceptance criteria)
+- **Autonomy governance (L0–L4)**: plan gates, review escalation, final-release rights, audit
 - **Enterprise gates**: input validation, secret scanning, policy checklist, quality scoring
 - **Resilience**: exponential backoff retries for transient LLM/tool failures
 - **Observability**: run IDs, node timings, audit trail, compliance verdict
 - **Checkpointing** with `MemorySaver`
 - **Human-in-the-loop** via `interrupt()` / `Command(resume=...)`
 - **Streaming** node updates for demos
+
+### Autonomy levels
+
+| Level | Name | Behavior |
+|------|------|----------|
+| L0 | Supervised | Approve plan + every review + final release |
+| L1 | Assisted | Approve plan + final release; escalate on reject |
+| L2 | Conditional | Auto within risk ceiling; escalate on reject/policy/high risk |
+| L3 | High | Escalate only for critical risk / hard policy / severe miss |
+| L4 | Full | No human gates; hard guardrails + audit remain |
 
 ## Agents
 

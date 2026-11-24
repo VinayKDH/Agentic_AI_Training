@@ -90,3 +90,6 @@ class MultiAgentState(TypedDict, total=False):
     metrics: Dict[str, Any]
     compliance: Dict[str, Any]
     guardrail_status: Dict[str, Any]
+    autonomy_level: str
+    governance: Dict[str, Any]
+    governance_decisions: Annotated[List[Dict[str, Any]], merge_dicts]

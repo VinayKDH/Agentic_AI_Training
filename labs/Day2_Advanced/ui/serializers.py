@@ -36,4 +36,7 @@ def summarize_state(state: dict) -> dict:
         "policy_violations": to_jsonable(state.get("policy_violations") or []),
         "run_metadata": to_jsonable(state.get("run_metadata") or {}),
         "guardrail_status": to_jsonable(state.get("guardrail_status") or {}),
+        "autonomy_level": state.get("autonomy_level"),
+        "governance": to_jsonable(state.get("governance") or {}),
+        "governance_decisions": to_jsonable(state.get("governance_decisions") or []),
     }

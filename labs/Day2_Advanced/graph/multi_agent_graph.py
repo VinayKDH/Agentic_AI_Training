@@ -17,10 +17,12 @@ from agents.researcher import ResearcherAgent
 from agents.reviewer import ReviewerAgent
 from state import AgentRole, MultiAgentState, TaskStatus, upsert_tasks
 from utils.constants import (
+    DEFAULT_AUTONOMY_LEVEL,
     ENTERPRISE_POLICY_CHECKLIST,
     GRAPH_RECURSION_LIMIT,
     SYNTHESIZER_SYSTEM_PROMPT,
 )
+from utils.governance import AutonomyGovernor, normalize_autonomy_level
 from utils.guardrails import validate_user_query
 from utils.llm import active_model_label, get_llm
 from utils.observability import RunContext, format_run_report
@@ -34,12 +36,20 @@ class MultiAgentGraph:
         self,
         enable_checkpoints: bool = True,
         enable_human_review: bool = True,
+        autonomy_level: str | None = None,
     ):
         self.planner = PlannerAgent()
         self.researcher = ResearcherAgent()
         self.coder = CoderAgent()
         self.reviewer = ReviewerAgent()
-        self.enable_human_review = enable_human_review
+        # Backward compatible: HITL off => L4; HITL on => selected/default level
+        if not enable_human_review and autonomy_level is None:
+            autonomy_level = "L4"
+        self.autonomy_level = normalize_autonomy_level(
+            autonomy_level or DEFAULT_AUTONOMY_LEVEL
+        )
+        self.governor = AutonomyGovernor(self.autonomy_level)
+        self.enable_human_review = enable_human_review and self.autonomy_level != "L4"
         self._run_ctx: RunContext | None = None
         self.graph = self._build_graph(enable_checkpoints)
 
@@ -162,10 +172,81 @@ class MultiAgentGraph:
     ) -> Command[Literal["researcher", "coder", "synthesizer"]]:
         if state.get("final_output") and not state.get("tasks"):
             return Command(goto="synthesizer")
+
+        plan_decision = self.governor.evaluate_plan_gate(state.get("plan"))
+        governance_update = {
+            "autonomy_level": self.autonomy_level,
+            "governance": self.governor.summary(),
+            "governance_decisions": [plan_decision.to_dict()],
+        }
+
+        if self.enable_human_review and plan_decision.require_human:
+            print("\n[Governance] Plan approval required under autonomy policy...")
+            decision = interrupt(
+                {
+                    "type": "plan_gate",
+                    "autonomy_level": self.autonomy_level,
+                    "governance": plan_decision.to_dict(),
+                    "plan": {
+                        "reasoning": (state.get("plan") or {}).get("reasoning"),
+                        "tasks": [
+                            {
+                                "description": task.get("description"),
+                                "assigned_to": getattr(
+                                    task.get("assigned_to"),
+                                    "value",
+                                    task.get("assigned_to"),
+                                ),
+                                "risk_level": task.get("risk_level"),
+                                "priority": task.get("priority"),
+                            }
+                            for task in state.get("tasks", [])
+                        ],
+                    },
+                    "prompt": (
+                        f"Autonomy {self.autonomy_level} requires plan approval. "
+                        "Reply with 'approve' to execute, or guidance to revise."
+                    ),
+                }
+            )
+            lowered = str(decision).lower().strip()
+            if lowered not in {"approve", "approved", "yes", "y"}:
+                return Command(
+                    update={
+                        **governance_update,
+                        "final_output": (
+                            "Plan execution halted by governance.\n"
+                            f"Human decision: {decision}"
+                        ),
+                        "requires_human_input": True,
+                        "human_feedback": str(decision),
+                        "messages": [
+                            AIMessage(
+                                content=f"Governance blocked plan execution: {decision}"
+                            )
+                        ],
+                        "agent_history": [
+                            {
+                                "agent": "governance",
+                                "action": "plan_rejected",
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "autonomy_level": self.autonomy_level,
+                            }
+                        ],
+                    },
+                    goto="synthesizer",
+                )
+
         route = next_route_after_plan(state)
-        print(f"\n[Dispatch] Routing to: {route}")
-        self._ctx(state).log("dispatch", "route", route=route)
-        return Command(goto=route)
+        print(f"\n[Dispatch] Routing to: {route} (autonomy={self.autonomy_level})")
+        self._ctx(state).log(
+            "dispatch",
+            "route",
+            route=route,
+            autonomy_level=self.autonomy_level,
+            plan_gate=plan_decision.require_human,
+        )
+        return Command(update=governance_update, goto=route)
 
     def research_node(self, state: MultiAgentState) -> dict:
         ctx = self._ctx(state)
@@ -330,12 +411,40 @@ class MultiAgentGraph:
         iteration = int(state.get("iteration_count") or 0) + 1
         human_feedback = state.get("human_feedback")
 
-        if (
-            self.enable_human_review
-            and not review_result.get("approved")
-            and iteration <= 2
-        ):
-            print("\n[HITL] Waiting for human decision on rejected work...")
+        # Provisional status for pending-task awareness in governance
+        provisional_status = (
+            TaskStatus.COMPLETED
+            if review_result.get("approved")
+            else TaskStatus.NEEDS_REVIEW
+        )
+        provisional_tasks = upsert_tasks(
+            state.get("tasks", []),
+            [{**task, "status": provisional_status}],
+        )
+        if review_result.get("approved"):
+            pending_remaining = bool(
+                [
+                    item
+                    for item in pending_tasks(provisional_tasks)
+                    if item.get("id") != current_task_id
+                ]
+            )
+        else:
+            # Still iterating current work — not a final-release moment
+            pending_remaining = True
+
+        gov_decision = self.governor.evaluate_review_gate(
+            task=task,
+            review=review_result,
+            policy_violations=policy.violations,
+            pending_remaining=pending_remaining,
+        )
+
+        if self.enable_human_review and gov_decision.require_human and iteration <= 3:
+            print(
+                f"\n[Governance] Human gate ({self.autonomy_level}): "
+                f"{', '.join(gov_decision.escalation_triggers) or 'policy'}"
+            )
             decision = interrupt(
                 {
                     "type": "review_gate",
@@ -344,8 +453,10 @@ class MultiAgentGraph:
                     "score": review_result.get("score"),
                     "feedback": review_result.get("feedback"),
                     "policy_violations": policy.violations,
+                    "autonomy_level": self.autonomy_level,
+                    "governance": gov_decision.to_dict(),
                     "prompt": (
-                        "Enterprise reviewer requested changes. "
+                        f"Autonomy {self.autonomy_level} escalation. "
                         "Reply with 'approve', 'revise', or free-text guidance."
                     ),
                 }
@@ -379,6 +490,9 @@ class MultiAgentGraph:
             "requires_human_input": not review_result.get("approved"),
             "human_feedback": human_feedback,
             "policy_violations": list(policy.violations),
+            "autonomy_level": self.autonomy_level,
+            "governance": self.governor.summary(),
+            "governance_decisions": [gov_decision.to_dict()],
             "messages": [
                 AIMessage(
                     content=(
@@ -389,6 +503,7 @@ class MultiAgentGraph:
                             else "Needs Revision"
                         )
                         + f" (score={review_result.get('score')})"
+                        + f" | autonomy={self.autonomy_level}"
                         + f"\n{review_result.get('feedback', '')}"
                     )
                 )
@@ -400,6 +515,8 @@ class MultiAgentGraph:
                     "task_id": current_task_id,
                     "approved": review_result.get("approved"),
                     "score": review_result.get("score"),
+                    "autonomy_level": self.autonomy_level,
+                    "governance_escalation": gov_decision.require_human,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
             ],
@@ -417,6 +534,7 @@ class MultiAgentGraph:
             approved=review_result.get("approved"),
             score=review_result.get("score"),
             next_route=route,
+            autonomy_level=self.autonomy_level,
         )
         return Command(update=update, goto=route)
 
@@ -510,13 +628,20 @@ class MultiAgentGraph:
             compliance_verdict = "conditional"
 
         report = ctx.finalize()
+        governance = self.governor.summary()
         compliance = {
             "verdict": compliance_verdict,
             "checklist": list(ENTERPRISE_POLICY_CHECKLIST),
             "approved_reviews": len(approved_reviews),
             "total_reviews": len(state.get("review_feedback", [])),
+            "autonomy_level": self.autonomy_level,
         }
-        ctx.log("synthesizer", "finalized", verdict=compliance_verdict)
+        ctx.log(
+            "synthesizer",
+            "finalized",
+            verdict=compliance_verdict,
+            autonomy_level=self.autonomy_level,
+        )
 
         return {
             "final_output": final_output,
@@ -524,12 +649,15 @@ class MultiAgentGraph:
             "run_metadata": report,
             "metrics": report["metrics"],
             "compliance": compliance,
+            "autonomy_level": self.autonomy_level,
+            "governance": governance,
             "agent_history": [
                 {
                     "agent": "synthesizer",
                     "action": "finalized",
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                     "compliance": compliance_verdict,
+                    "autonomy_level": self.autonomy_level,
                 }
             ],
         }
@@ -555,6 +683,7 @@ class MultiAgentGraph:
 
     def _initial_state(self, query: str) -> MultiAgentState:
         self._run_ctx = RunContext()
+        self.governor = AutonomyGovernor(self.autonomy_level)
         return {
             "messages": [HumanMessage(content=query)],
             "original_query": query,
@@ -576,6 +705,9 @@ class MultiAgentGraph:
             "metrics": {},
             "compliance": {},
             "guardrail_status": {},
+            "autonomy_level": self.autonomy_level,
+            "governance": self.governor.catalog(),
+            "governance_decisions": [],
         }
 
     def run(self, query: str, config: dict | None = None) -> dict:

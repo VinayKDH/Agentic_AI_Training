@@ -87,6 +87,7 @@ def stream_lab_run(
     *,
     enable_hitl: bool = False,
     thread_id: str | None = None,
+    autonomy_level: str | None = None,
 ) -> Generator[str, None, None]:
     lab = get_lab(lab_id)
     tid = thread_id or f"{lab_id}-{uuid.uuid4().hex[:10]}"
@@ -99,6 +100,7 @@ def stream_lab_run(
                 enable_hitl=hitl,
                 thread_id=tid,
                 lab=lab,
+                autonomy_level=autonomy_level,
             )
         elif lab_id == "customer_support":
             yield _sse(
@@ -174,13 +176,20 @@ def _run_day2(
     enable_hitl: bool,
     thread_id: str,
     lab: dict,
+    autonomy_level: str | None = None,
 ) -> Generator[str, None, None]:
     from ui.service import console_service
+    from utils.constants import DEFAULT_AUTONOMY_LEVEL
+    from utils.governance import normalize_autonomy_level
 
+    level = normalize_autonomy_level(autonomy_level or DEFAULT_AUTONOMY_LEVEL)
     # Inject lab metadata into the first event by wrapping the generator
     started = False
     for chunk in console_service.stream_run(
-        query, enable_hitl=enable_hitl, thread_id=thread_id
+        query,
+        enable_hitl=enable_hitl,
+        thread_id=thread_id,
+        autonomy_level=level,
     ):
         if not started and chunk.startswith("event: run_started"):
             started = True
@@ -190,6 +199,7 @@ def _run_day2(
                 "lab_name": lab["name"],
                 "query": query,
                 "enable_hitl": enable_hitl,
+                "autonomy_level": level,
                 "model": active_model_label(),
                 "flow": lab.get("flow", []),
             }

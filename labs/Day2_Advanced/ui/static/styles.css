@@ -162,6 +162,30 @@ body {
   font-weight: 500;
 }
 
+select {
+  width: 100%;
+  margin-bottom: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(7, 19, 26, 0.65);
+  color: var(--ink);
+  font: inherit;
+  padding: 0.75rem 0.95rem;
+  outline: none;
+}
+
+select:focus {
+  border-color: rgba(61, 184, 160, 0.55);
+  box-shadow: 0 0 0 3px rgba(61, 184, 160, 0.15);
+}
+
+.lab-description {
+  margin: 0 0 0.9rem;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 .lab-description {
   margin: 0.35rem 0 1rem;
   color: var(--muted);
@@ -328,6 +352,7 @@ button.ghost {
 }
 
 .stage h2,
+.step-board-header h3,
 .output-panel h2,
 .report-panel h2,
 .hitl h3 {
@@ -335,6 +360,260 @@ button.ghost {
   font-family: var(--font-display);
   font-size: 1.2rem;
   font-weight: 600;
+}
+
+.agent-now {
+  padding: 0.95rem 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(61, 184, 160, 0.28);
+  background:
+    linear-gradient(120deg, rgba(61, 184, 160, 0.12), transparent 55%),
+    rgba(7, 19, 26, 0.55);
+}
+
+.agent-now-label {
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.agent-now-main {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+}
+
+#current-agent-name {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  text-transform: capitalize;
+}
+
+.agent-state-chip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.agent-state-chip.active {
+  color: #08201b;
+  background: var(--accent-2);
+  border-color: transparent;
+  animation: pulse 1.2s ease infinite;
+}
+
+.agent-state-chip.blocked {
+  color: #1a1208;
+  background: var(--accent);
+  border-color: transparent;
+}
+
+.agent-state-chip.done {
+  color: var(--ok);
+  border-color: rgba(111, 207, 151, 0.4);
+}
+
+.agent-now-summary {
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.handoff-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 12px;
+  background: rgba(224, 164, 90, 0.1);
+  border: 1px solid rgba(224, 164, 90, 0.28);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  animation: slideIn 0.35s ease both;
+}
+
+.handoff-banner.hidden {
+  display: none;
+}
+
+.handoff-arrow {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.handoff-reason {
+  color: var(--muted);
+  flex: 1 1 100%;
+}
+
+.step-board {
+  border-top: 1px solid var(--line);
+  padding-top: 0.85rem;
+}
+
+.step-board-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
+}
+
+.step-count {
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.step-rail {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.step-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 0.75rem;
+  padding: 0 0 1rem;
+  animation: rise 0.35s ease both;
+}
+
+.step-item:last-child {
+  padding-bottom: 0.25rem;
+}
+
+.step-marker {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.step-marker::before {
+  content: "";
+  position: absolute;
+  top: 1.1rem;
+  bottom: -1rem;
+  width: 2px;
+  background: rgba(232, 241, 244, 0.12);
+}
+
+.step-item:last-child .step-marker::before {
+  display: none;
+}
+
+.step-dot {
+  width: 12px;
+  height: 12px;
+  margin-top: 0.35rem;
+  border-radius: 50%;
+  border: 2px solid var(--muted);
+  background: var(--bg-0);
+  z-index: 1;
+}
+
+.step-item.active .step-dot {
+  border-color: var(--accent-2);
+  background: var(--accent-2);
+  box-shadow: 0 0 0 4px rgba(61, 184, 160, 0.2);
+  animation: pulse 1.2s ease infinite;
+}
+
+.step-item.done .step-dot {
+  border-color: var(--ok);
+  background: var(--ok);
+}
+
+.step-item.blocked .step-dot {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.step-item.handoff-only .step-dot {
+  border-color: var(--accent);
+  background: transparent;
+}
+
+.step-card {
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(7, 19, 26, 0.45);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.step-card:hover,
+.step-item.selected .step-card {
+  border-color: rgba(61, 184, 160, 0.45);
+  background: rgba(18, 48, 65, 0.55);
+}
+
+.step-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.step-agent {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--accent-2);
+  text-transform: capitalize;
+}
+
+.step-meta {
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.step-summary {
+  margin: 0.35rem 0 0;
+  color: var(--ink);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.step-handoff {
+  margin-top: 0.45rem;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.step-details {
+  display: none;
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+.step-item.selected .step-details {
+  display: block;
 }
 
 .status {

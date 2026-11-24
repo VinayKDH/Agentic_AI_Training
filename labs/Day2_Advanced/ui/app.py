@@ -27,7 +27,15 @@ if broken_adc and not os.path.exists(broken_adc):
 
 from ui.lab_runners import stream_lab_resume, stream_lab_run
 from ui.labs import default_lab_id, get_lab, list_labs
-from utils.constants import MAX_QUERY_LENGTH, UI_HOST, UI_PORT, UI_SUBTITLE, UI_TITLE
+from utils.constants import (
+    DEFAULT_AUTONOMY_LEVEL,
+    MAX_QUERY_LENGTH,
+    UI_HOST,
+    UI_PORT,
+    UI_SUBTITLE,
+    UI_TITLE,
+)
+from utils.governance import AutonomyGovernor, normalize_autonomy_level
 from utils.llm import active_model_label
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -40,6 +48,7 @@ class RunRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=MAX_QUERY_LENGTH)
     lab_id: str = Field(default_factory=default_lab_id)
     enable_hitl: bool = False
+    autonomy_level: str = DEFAULT_AUTONOMY_LEVEL
 
 
 class ResumeRequest(BaseModel):
@@ -62,6 +71,7 @@ def health() -> dict:
 def bootstrap() -> dict:
     labs = list_labs()
     current = get_lab(default_lab_id())
+    governance = AutonomyGovernor(DEFAULT_AUTONOMY_LEVEL).catalog()
     return {
         "title": UI_TITLE,
         "subtitle": UI_SUBTITLE,
@@ -72,7 +82,14 @@ def bootstrap() -> dict:
         "flow": current.get("flow", []),
         "examples": current.get("examples", []),
         "hitl_default": False,
+        "default_autonomy_level": DEFAULT_AUTONOMY_LEVEL,
+        "governance": governance,
     }
+
+
+@app.get("/api/governance")
+def governance_catalog() -> dict:
+    return AutonomyGovernor(DEFAULT_AUTONOMY_LEVEL).catalog()
 
 
 @app.get("/api/labs/{lab_id}")
@@ -94,7 +111,12 @@ def start_run(body: RunRequest) -> StreamingResponse:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return StreamingResponse(
-        stream_lab_run(body.lab_id, query, enable_hitl=body.enable_hitl),
+        stream_lab_run(
+            body.lab_id,
+            query,
+            enable_hitl=body.enable_hitl,
+            autonomy_level=normalize_autonomy_level(body.autonomy_level),
+        ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

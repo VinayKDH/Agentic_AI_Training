@@ -133,9 +133,12 @@ def format_run_report(state: Dict[str, Any]) -> str:
     meta = state.get("run_metadata") or {}
     metrics = state.get("metrics") or meta.get("metrics") or {}
     compliance = state.get("compliance") or {}
+    governance = state.get("governance") or {}
     lines = [
         "Enterprise Run Report",
         f"- Run ID: {meta.get('run_id') or state.get('run_id', 'n/a')}",
+        f"- Autonomy: {state.get('autonomy_level') or governance.get('autonomy_level', 'n/a')}",
+        f"- Governance escalations: {governance.get('escalations', 0)}",
         f"- Duration ms: {metrics.get('duration_ms', 'n/a')}",
         f"- LLM calls: {metrics.get('llm_calls', 0)}",
         f"- Retries: {metrics.get('retries', 0)}",

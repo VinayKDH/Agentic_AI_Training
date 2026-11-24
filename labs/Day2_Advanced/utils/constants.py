@@ -136,6 +136,73 @@ MAX_WORK_PRODUCT_CHARS = 24000
 RISK_LEVELS = ("low", "medium", "high", "critical")
 PRIORITY_LEVELS = ("p0", "p1", "p2", "p3")
 
+# Standard agent autonomy governance (L0–L4)
+DEFAULT_AUTONOMY_LEVEL = "L2"
+AUTONOMY_LEVELS = (
+    {
+        "id": "L0",
+        "name": "Supervised",
+        "summary": "Human approves plan and every review before work continues.",
+        "requires_plan_approval": True,
+        "requires_review_approval": True,
+        "requires_final_release": True,
+        "auto_escalate_on_reject": True,
+        "max_autonomous_risk": None,
+    },
+    {
+        "id": "L1",
+        "name": "Assisted",
+        "summary": "Agents propose; humans approve the plan and final release.",
+        "requires_plan_approval": True,
+        "requires_review_approval": False,
+        "requires_final_release": True,
+        "auto_escalate_on_reject": True,
+        "max_autonomous_risk": "low",
+    },
+    {
+        "id": "L2",
+        "name": "Conditional",
+        "summary": "Agents act within policy; escalate on reject, high risk, or policy fail.",
+        "requires_plan_approval": False,
+        "requires_review_approval": False,
+        "requires_final_release": False,
+        "auto_escalate_on_reject": True,
+        "max_autonomous_risk": "medium",
+    },
+    {
+        "id": "L3",
+        "name": "High autonomy",
+        "summary": "End-to-end unless critical risk, hard policy fail, or severe quality miss.",
+        "requires_plan_approval": False,
+        "requires_review_approval": False,
+        "requires_final_release": False,
+        "auto_escalate_on_reject": False,
+        "max_autonomous_risk": "high",
+    },
+    {
+        "id": "L4",
+        "name": "Full autonomy",
+        "summary": "No human gates; hard guardrails and audit trail still apply.",
+        "requires_plan_approval": False,
+        "requires_review_approval": False,
+        "requires_final_release": False,
+        "auto_escalate_on_reject": False,
+        "max_autonomous_risk": "critical",
+    },
+)
+
+AUTONOMY_DECISION_RIGHTS = (
+    "plan_execute",
+    "task_execute",
+    "tool_use",
+    "code_generate",
+    "review_self_approve",
+    "final_release",
+)
+
+GOVERNANCE_FRAMEWORK_NAME = "Agent Autonomy Governance Standard"
+GOVERNANCE_FRAMEWORK_VERSION = "1.0"
+
 DEMO_QUERY = (
     "Research FastAPI best practices briefly and create a minimal sample REST API "
     "with one health endpoint and one hello endpoint."

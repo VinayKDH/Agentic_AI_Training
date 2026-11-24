@@ -7,6 +7,11 @@ This repository contains the complete lab exercises for the **3-Day Agentic AI T
 ## Repository Structure
 
 ```
+labs/                     # Day-wise lab projects
+templates/                # Reusable Agent Template for students
+├── README.md             # How to define a new agent
+└── agent_template.py     # Copy/rename this to create an agent
+
 labs/
 ├── Day1_Medium/          # Day 1: Basic Conversational Agent
 ├── Day1_Advanced/        # Day 1: Multi-Tool Agent with RAG

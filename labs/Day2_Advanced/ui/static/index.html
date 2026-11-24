@@ -32,6 +32,10 @@
             <span class="meta-label">Selected lab</span>
             <span id="selected-lab-label">…</span>
           </div>
+          <div class="meta-pill">
+            <span class="meta-label">Autonomy</span>
+            <span id="autonomy-pill">L2</span>
+          </div>
         </div>
       </header>
 
@@ -48,10 +52,14 @@
             placeholder="Describe the outcome you need…"
           ></textarea>
 
+          <label for="autonomy-select" id="autonomy-label">Autonomy governance</label>
+          <select id="autonomy-select"></select>
+          <p id="autonomy-summary" class="lab-description"></p>
+
           <div class="composer-row">
             <label class="toggle" id="hitl-wrap">
               <input type="checkbox" id="hitl-toggle" />
-              <span>Human review gate</span>
+              <span>Force human gates</span>
             </label>
             <button id="run-btn" type="button">Run lab</button>
           </div>
@@ -66,7 +74,32 @@
             <span id="run-status" class="status idle">Idle</span>
           </div>
 
-          <div id="timeline" class="timeline"></div>
+          <div class="agent-now" id="agent-now" aria-live="polite">
+            <div class="agent-now-label">Current agent</div>
+            <div class="agent-now-main">
+              <span id="current-agent-name">Idle</span>
+              <span id="current-agent-state" class="agent-state-chip">waiting</span>
+            </div>
+            <p id="current-agent-summary" class="agent-now-summary">
+              Start a run to watch step-by-step handoffs.
+            </p>
+            <div class="handoff-banner hidden" id="handoff-banner">
+              <span id="handoff-from">—</span>
+              <span class="handoff-arrow" aria-hidden="true">→</span>
+              <span id="handoff-to">—</span>
+              <span id="handoff-reason" class="handoff-reason"></span>
+            </div>
+          </div>
+
+          <div class="step-board">
+            <div class="step-board-header">
+              <h3>Step-by-step</h3>
+              <span id="step-count" class="step-count">0 steps</span>
+            </div>
+            <ol id="step-rail" class="step-rail" aria-label="Agent handoff steps"></ol>
+          </div>
+
+          <div id="timeline" class="timeline" hidden></div>
 
           <div id="hitl-panel" class="hitl hidden">
             <h3>Human review required</h3>
