@@ -1,74 +1,99 @@
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import PydanticOutputParser
-from pydantic import BaseModel, Field
-from typing import List
-from state import Task, AgentRole, TaskStatus
-import os
-import json
+"""Planner agent with structured output."""
+
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
+from typing import List, Literal
+
+from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
+
+from state import AgentRole, Task, TaskStatus
+from utils.constants import MAX_PLAN_TASKS, PLANNER_SYSTEM_PROMPT
+from utils.llm import get_llm
+
+
+class PlannedTask(BaseModel):
+    description: str = Field(description="Actionable task description")
+    agent: Literal["researcher", "coder"] = Field(
+        description="Worker agent assigned to this task"
+    )
+    dependencies: List[str] = Field(
+        default_factory=list,
+        description="Optional dependency labels or prior task descriptions",
+    )
+
 
 class TaskPlan(BaseModel):
-    tasks: List[dict] = Field(description="List of tasks to complete")
-    reasoning: str = Field(description="Reasoning behind the plan")
+    tasks: List[PlannedTask] = Field(description="Ordered execution plan")
+    reasoning: str = Field(description="Why this plan solves the user request")
+
 
 class PlannerAgent:
     def __init__(self):
-        self.llm = ChatOpenAI(
-            model="gpt-4",
-            temperature=0.3,
-            api_key=os.getenv("OPENAI_API_KEY")
+        self.llm = get_llm(temperature=0.2).with_structured_output(TaskPlan)
+        self.prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", PLANNER_SYSTEM_PROMPT.format(max_tasks=MAX_PLAN_TASKS)),
+                (
+                    "human",
+                    "User Query: {query}\n\nCreate a detailed but compact plan.",
+                ),
+            ]
         )
-        
-        self.parser = PydanticOutputParser(pydantic_object=TaskPlan)
-        
-        self.prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are an expert planning agent. Your role is to break down complex 
-            queries into actionable tasks.
-            
-            Analyze the user's request and create a detailed plan with:
-            1. Research tasks (if information gathering is needed)
-            2. Coding tasks (if code generation is required)
-            3. Review tasks (for quality assurance)
-            
-            Consider dependencies between tasks. Tasks should be specific and actionable.
-            
-            {format_instructions}"""),
-            ("human", "User Query: {query}\n\nCreate a detailed plan to address this query.")
-        ]).partial(format_instructions=self.parser.get_format_instructions())
-    
+
     def create_plan(self, query: str) -> dict:
-        """Create a plan from user query"""
-        chain = self.prompt | self.llm | self.parser
-        
+        """Create a structured execution plan from the user query."""
         try:
-            result = chain.invoke({"query": query})
-            
-            # Convert to tasks
-            tasks = []
-            for i, task_desc in enumerate(result.tasks):
-                task = Task(
-                    id=str(uuid.uuid4()),
-                    description=task_desc.get("description", ""),
-                    assigned_to=AgentRole(task_desc.get("agent", "researcher")),
-                    status=TaskStatus.PENDING,
-                    result=None,
-                    dependencies=task_desc.get("dependencies", []),
-                    created_at=datetime.now().isoformat(),
-                    completed_at=None
+            result: TaskPlan = (self.prompt | self.llm).invoke({"query": query})
+            tasks: List[Task] = []
+            for planned in result.tasks[:MAX_PLAN_TASKS]:
+                tasks.append(
+                    Task(
+                        id=str(uuid.uuid4()),
+                        description=planned.description,
+                        assigned_to=AgentRole(planned.agent),
+                        status=TaskStatus.PENDING,
+                        result=None,
+                        dependencies=planned.dependencies,
+                        created_at=datetime.now().isoformat(),
+                        completed_at=None,
+                    )
                 )
-                tasks.append(task)
-            
             return {
                 "tasks": tasks,
                 "reasoning": result.reasoning,
-                "plan_structure": json.dumps([t["description"] for t in result.tasks], indent=2)
+                "plan_structure": [task["description"] for task in tasks],
             }
-        except Exception as e:
+        except Exception as exc:
+            # Deterministic fallback keeps the graph demoable when the LLM is unavailable
+            fallback_tasks: List[Task] = [
+                Task(
+                    id=str(uuid.uuid4()),
+                    description=f"Research best practices related to: {query}",
+                    assigned_to=AgentRole.RESEARCHER,
+                    status=TaskStatus.PENDING,
+                    result=None,
+                    dependencies=[],
+                    created_at=datetime.now().isoformat(),
+                    completed_at=None,
+                ),
+                Task(
+                    id=str(uuid.uuid4()),
+                    description=f"Implement a practical solution for: {query}",
+                    assigned_to=AgentRole.CODER,
+                    status=TaskStatus.PENDING,
+                    result=None,
+                    dependencies=[],
+                    created_at=datetime.now().isoformat(),
+                    completed_at=None,
+                ),
+            ]
             return {
-                "tasks": [],
-                "reasoning": f"Error creating plan: {str(e)}",
-                "plan_structure": ""
+                "tasks": fallback_tasks,
+                "reasoning": (
+                    f"LLM planning failed ({exc}); used deterministic researcher+coder fallback."
+                ),
+                "plan_structure": [task["description"] for task in fallback_tasks],
             }
-

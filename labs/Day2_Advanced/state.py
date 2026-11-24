@@ -1,14 +1,20 @@
-from typing import TypedDict, List, Annotated, Optional, Dict, Any
-from langchain_core.messages import BaseMessage
-import operator
-from datetime import datetime
+"""LangGraph state schema for the Day2 Advanced multi-agent system."""
+
+from __future__ import annotations
+
 from enum import Enum
+from typing import Annotated, Any, Dict, List, Optional, TypedDict
+
+from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
+
 
 class AgentRole(str, Enum):
     PLANNER = "planner"
     RESEARCHER = "researcher"
     CODER = "coder"
     REVIEWER = "reviewer"
+
 
 class TaskStatus(str, Enum):
     PENDING = "pending"
@@ -17,7 +23,8 @@ class TaskStatus(str, Enum):
     FAILED = "failed"
     NEEDS_REVIEW = "needs_review"
 
-class Task(TypedDict):
+
+class Task(TypedDict, total=False):
     id: str
     description: str
     assigned_to: AgentRole
@@ -27,35 +34,45 @@ class Task(TypedDict):
     created_at: str
     completed_at: Optional[str]
 
-class MultiAgentState(TypedDict):
-    """Advanced state schema for multi-agent system"""
-    # Messages
-    messages: Annotated[List[BaseMessage], operator.add]
-    
-    # User query
+
+def merge_dicts(left: List[Dict[str, Any]], right: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Append-only reducer for artifact lists."""
+    return (left or []) + (right or [])
+
+
+def upsert_tasks(existing: List[Task], updates: List[Task]) -> List[Task]:
+    """Merge task updates by id while preserving order."""
+    if not updates:
+        return existing or []
+
+    by_id: Dict[str, Task] = {task["id"]: task for task in (existing or [])}
+    order = [task["id"] for task in (existing or [])]
+
+    for task in updates:
+        task_id = task["id"]
+        if task_id in by_id:
+            by_id[task_id] = {**by_id[task_id], **task}
+        else:
+            by_id[task_id] = task
+            order.append(task_id)
+
+    return [by_id[task_id] for task_id in order]
+
+
+class MultiAgentState(TypedDict, total=False):
+    """Shared graph state with reducers for concurrent/parallel updates."""
+
+    messages: Annotated[List[BaseMessage], add_messages]
     original_query: str
-    
-    # Planning
     plan: Optional[Dict[str, Any]]
-    tasks: Annotated[List[Task], operator.add]
+    tasks: Annotated[List[Task], upsert_tasks]
     current_task_id: Optional[str]
-    
-    # Research
-    research_findings: Annotated[List[Dict[str, str]], operator.add]
-    
-    # Code
-    code_artifacts: Annotated[List[Dict[str, str]], operator.add]
-    
-    # Review
-    review_feedback: Annotated[List[Dict[str, str]], operator.add]
-    
-    # Final output
+    research_findings: Annotated[List[Dict[str, Any]], merge_dicts]
+    code_artifacts: Annotated[List[Dict[str, Any]], merge_dicts]
+    review_feedback: Annotated[List[Dict[str, Any]], merge_dicts]
     final_output: str
-    
-    # Metadata
     iteration_count: int
-    agent_history: Annotated[List[Dict[str, Any]], operator.add]
-    errors: Annotated[List[str], operator.add]
+    agent_history: Annotated[List[Dict[str, Any]], merge_dicts]
+    errors: Annotated[List[str], merge_dicts]
     requires_human_input: bool
     human_feedback: Optional[str]
-

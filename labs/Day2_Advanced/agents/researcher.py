@@ -1,96 +1,99 @@
-from langchain_openai import ChatOpenAI
-from langchain_community.tools import DuckDuckGoSearchRun
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from state import Task, TaskStatus
-import os
+"""Researcher agent using LangChain create_agent + tools when available."""
+
+from __future__ import annotations
+
 from datetime import datetime
 
-# Try to import agent components
-try:
-    from langchain.agents import AgentExecutor, create_openai_tools_agent
-    AGENT_AVAILABLE = True
-    AGENT_TYPE = "openai_tools"
-except ImportError:
-    try:
-        from langchain.agents import AgentExecutor, create_react_agent
-        AGENT_AVAILABLE = True
-        AGENT_TYPE = "react"
-    except ImportError:
-        AGENT_AVAILABLE = False
+from langchain_core.messages import HumanMessage
+from langchain_core.prompts import ChatPromptTemplate
+
+from state import Task, TaskStatus
+from tools.web_search import get_research_tools
+from utils.constants import RESEARCH_TEMPERATURE, RESEARCHER_SYSTEM_PROMPT
+from utils.llm import get_llm
+
 
 class ResearcherAgent:
     def __init__(self):
-        self.llm = ChatOpenAI(
-            model="gpt-4",
-            temperature=0.7,
-            api_key=os.getenv("OPENAI_API_KEY")
+        self.llm = get_llm(temperature=RESEARCH_TEMPERATURE)
+        self.tools = get_research_tools()
+        self.agent = self._build_agent()
+        self.fallback_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", RESEARCHER_SYSTEM_PROMPT),
+                (
+                    "human",
+                    "Research topic:\n{query}\n\n"
+                    "Optional search snippets:\n{search_results}\n\n"
+                    "Provide concise findings with sources when possible.",
+                ),
+            ]
         )
-        self.search_tool = DuckDuckGoSearchRun()
-        
-        if AGENT_AVAILABLE:
-            # Create prompt template
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are a research assistant. Use the search tool to find information."),
-                ("human", "{input}"),
-                MessagesPlaceholder(variable_name="agent_scratchpad"),
-            ])
-            
-            # Create agent
-            if AGENT_TYPE == "openai_tools":
-                agent = create_openai_tools_agent(self.llm, [self.search_tool], prompt)
-            else:
-                agent = create_react_agent(self.llm, [self.search_tool], prompt)
-            
-            # Create agent executor
-            self.agent = AgentExecutor(
-                agent=agent,
-                tools=[self.search_tool],
-                verbose=True,
-                handle_parsing_errors=True,
-                max_iterations=3
-            )
-        else:
-            self.agent = None
-    
-    def research(self, task: Task, context: dict = None) -> dict:
-        """Perform research for a task"""
-        query = task["description"]
-        
-        if context:
-            query = f"{query}\n\nContext from previous tasks: {context}"
-        
-        research_prompt = f"""Research the following topic comprehensively:
-        {query}
-        
-        Provide detailed findings with sources. Focus on accuracy and relevance."""
-        
+
+    def _build_agent(self):
         try:
-            if self.agent:
-                result = self.agent.invoke({"input": research_prompt})
-                output = result["output"] if isinstance(result, dict) else str(result)
+            from langchain.agents import create_agent
+
+            return create_agent(
+                model=self.llm,
+                tools=self.tools,
+                system_prompt=RESEARCHER_SYSTEM_PROMPT,
+            )
+        except Exception:
+            # Fallback for environments without langchain.agents.create_agent
+            try:
+                from langgraph.prebuilt import create_react_agent
+
+                return create_react_agent(
+                    model=self.llm,
+                    tools=self.tools,
+                    prompt=RESEARCHER_SYSTEM_PROMPT,
+                )
+            except Exception:
+                return None
+
+    def research(self, task: Task, context: dict | None = None) -> dict:
+        """Run tool-using research for a task."""
+        query = task["description"]
+        if context:
+            query = (
+                f"{query}\n\nContext from previous work:\n"
+                f"Research: {context.get('research', '')}\n"
+                f"Code: {context.get('code', '')}"
+            )
+
+        try:
+            if self.agent is not None:
+                result = self.agent.invoke(
+                    {"messages": [HumanMessage(content=query)]}
+                )
+                messages = result.get("messages", [])
+                output = messages[-1].content if messages else str(result)
             else:
-                # Fallback: direct search
-                output = self.search_tool.run(query)
-            
+                search_results = self.tools[0].invoke(query[:240])
+                response = (self.fallback_prompt | self.llm).invoke(
+                    {"query": query, "search_results": search_results}
+                )
+                output = response.content
+
             return {
                 "task_id": task["id"],
                 "findings": output,
-                "sources": self._extract_sources(output),
+                "sources": self._extract_sources(str(output)),
                 "status": TaskStatus.COMPLETED,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-        except Exception as e:
+        except Exception as exc:
             return {
                 "task_id": task["id"],
-                "findings": f"Research error: {str(e)}",
+                "findings": f"Research error: {exc}",
                 "sources": [],
                 "status": TaskStatus.FAILED,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-    
-    def _extract_sources(self, text: str) -> list:
-        """Extract source URLs from research text"""
-        import re
-        urls = re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', text)
-        return urls[:5]
 
+    def _extract_sources(self, text: str) -> list:
+        import re
+
+        urls = re.findall(r"https?://[^\s)\]]+", text)
+        return urls[:5]
